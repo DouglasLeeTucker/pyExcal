@@ -13,7 +13,7 @@
     Reads in a CSV file with the following columns and fits the data to
     the relevant photometric equation (u',g',r',i',z'): 
       Frame,Name,ra,dec,UT,F,X,mag,merr,u,g,r,i,z,ue,ge,re,ie,ze
-    (order is not important, but spelling is important)   
+    (order is not important, but spelling and case are important)   
 
     Example:
     
@@ -63,6 +63,11 @@ def main():
 
 def pyExcal_fit(args):
 
+    # Based on a scripts at
+    # http://linuxgazette.net/115/andreasen.html (by Anders Andreasen)
+    # and at
+    # http://www.phy.uct.ac.za/courses/python/examples/fitresonance.py (University of Cape Town)
+
     import numpy as np 
     import math
     import os
@@ -87,7 +92,9 @@ def pyExcal_fit(args):
         print """Exiting now!"""
         print
         return 1
-        
+
+    # Extract file basename (to be used to name output qa files...)
+    baseName = os.path.basename(inputFile)
 
     # Python dictionary of stdColor0's...
     stdColor0Dict = {'u':1.39,'g':0.53,'r':0.21,'i':0.21,'z':0.09}
@@ -200,7 +207,7 @@ def pyExcal_fit(args):
     print
     
     # output QA plot...
-    qaPlot1 = """qa-%s_airmass.png""" % (inputFile)
+    qaPlot1 = """qa-%s_airmass.%s-band.png""" % (baseName, band)
     print """Outputting QA plot %s""" % (qaPlot1)
     xlabel = 'airmass'
     plt.title(title)
@@ -212,7 +219,7 @@ def pyExcal_fit(args):
     plt.grid(True)
     plt.savefig(qaPlot1)
     plt.clf()
-    qaPlot2 = """qa-%s_color.png""" % (inputFile)
+    qaPlot2 = """qa-%s_color.%s-band.png""" % (baseName, band)
     print """Outputting QA plot %s""" % (qaPlot2)
     xlabel = """(%s) - %.3f""" % (colorNameDict[band], stdColor0Dict[band])
     plt.title(title)
