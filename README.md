@@ -70,10 +70,10 @@ just end up adding noise to the fit.)
 [Back to top.](#top)
 
 ----------------------------------------------------------------------
-#### <a name="requests"></a>How to request additions or other updates to the FAQ?
+#### <a name="requests"></a>How to request updates to the code or to the FAQ?
 
 Please use the [issues](https://github.com/DouglasLeeTucker/pyExcal/issues) to post requests for additions or other updates 
-to this FAQ .
+to the code or to this FAQ .
 
 
 [Back to top.](#top)
