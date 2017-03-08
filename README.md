@@ -18,10 +18,9 @@ A Python standard star fitter inspired by the SDSS mtpipe excal code.
      </ul>
      A fairly recent version of Ureka (run "ur_setup") or astroconda should set up all the necessary versions 
      of Python, numpy, and scipy.
-<li> Run the appropriate setup script in the pyExcal bin directory:
+<li> Run the appropriate setup script in the pyExcal bin directory, dependind on which shell you are using (bash or tcsh):
      <pre> source pyExcal/bin/setup.bash</pre> (bash) or <pre> source pyExcal/bin/setup.csh</pre> (tsch)
-     <bf> Note:  you will need to modify the value for PYEXCAL_DIR before the first time you ever run either 
-     of these setup scripts.</bf>
+     **Note:  you will need to modify the value for PYEXCAL_DIR in the setup script before the first time you ever run it.**
 <li> Run the following command:
      <pre> pyExcal.py --inputFile $PYEXCAL_DIR/test/std-rguiz-test.g.csv --band g</pre>
 </ol>
