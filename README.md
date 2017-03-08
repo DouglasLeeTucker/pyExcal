@@ -10,10 +10,20 @@ A Python standard star fitter inspired by the SDSS mtpipe excal code.
 #### <a name="howtorun"></a>How to run pyExcal?
 
 <ol>
-<li> Run ur_setup or whatever to get Ureka setup (which should set up
-     the necessary python modules... in particular, numpy and scipy).
+<li> Ensure that you have the necessary dependencies installed on your computer:
+     <ul>
+     <li> Python 2.7 or higher
+     <li> The numpy python module (pyExcal definitely works with numpy 1.11.1; other versions should work, too.)
+     <li> The scipy python module (pyExcal definitely works with numpy 0.18.0; other versions should work, too.)
+     </ul>
+     A fairly recent version of Ureka (run "ur_setup") or astroconda should set up all the necessary versions 
+     of Python, numpy, and scipy.
+<li> Run the appropriate setup script in the pyExcal bin directory:
+     <pre> source pyExcal/bin/setup.bash</pre> (bash) or <pre> source pyExcal/bin/setup.csh</pre> (tsch)
+     <bf> Note:  you will need to modify the value for PYEXCAL_DIR before the first time you ever run either 
+     of these setup scripts.</bf>
 <li> Run the following command:
-     <pre> pyExcal.py --inputFile std-rguiz-test.g.csv --band g</pre>
+     <pre> pyExcal.py --inputFile $PYEXCAL_DIR/test/std-rguiz-test.g.csv --band g</pre>
 </ol>
 You should get the following output to the screen, as well as two
 QA plots in png form:
@@ -44,8 +54,8 @@ k           -0.904639  -0.244643   1.000000
 Your fit equation is:
     g_inst - g_std = 1.349 + -0.008*((g-r) - 0.530) + 0.215*X
 
-Outputting QA plot qa-std-rguiz-test.g.csv_airmass.png
-Outputting QA plot qa-std-rguiz-test.g.csv_color.png
+Outputting QA plot qa-std-rguiz-test.g.csv_airmass.g-band.png
+Outputting QA plot qa-std-rguiz-test.g.csv_color.g-band.png
 
 
 That's all, folks!
