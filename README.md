@@ -27,7 +27,6 @@ A Python standard star fitter inspired by the SDSS mtpipe excal code.
 You should get the following output to the screen, as well as two
 QA plots in png form:
 
----------------------------------------------------------------------
 <pre>
 bash$ pyExcal.py --inputFile $PYEXCAL_DIR/test/std-rguiz-test.g.csv --band g
 
@@ -59,7 +58,6 @@ Outputting QA plot qa-std-rguiz-test.g.csv_color.g-band.png
 
 That's all, folks!
 </pre>
----------------------------------------------------------------------
 
 The a, b, and k parameters are the familiar a, b, and k from
 the mtpipe photometric equations.  Currently, I have ignored
