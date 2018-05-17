@@ -1,43 +1,56 @@
 #!/bin/bash
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+#
 # This script will likely eventually be replaced by a 
 # python script.
 # 
 # To run:
-# 1. After downloading runSextractor.sh, make it executable
-#    (should only need to do once):
+# 1. Clone from GitHub (or update your copy) of the 
+#    pyExcal package from 
+#    https://github.com/DouglasLeeTucker/pyExcal
 #
-#    bash-4.1$ chmod +x runSextractor.sh
+# 2. Edit your $PYEXCAL_DIR/bin/setup.bash or setup.csh 
+#    file.  (Should only need to do this once per 
+#    pyExcal package clone/update.)
 #
-# 2. Update the values for SEXTRACTOR_DIR, STILTS_DIR, and 
-#    STILTS_DIR list below in the runSextractor.sh script.
+# 3. Update the values for SEXTRACTOR_DIR, STILTS_DIR, and 
+#    STILTS_DIR list in the runSextractor.bash script (see
+#    these variables below).  (Should only need to do this 
+#    once per pyExcal package clone/update.)
 #
-# 3. Copy runSextractor.sh to the directory where you want
+# 4. Copy runSextractor.sh to the directory where you want
 #    to run it.
 #
-# 4. Copy/create appropriate sextractor configuration/parameter
-#    files into the same directory.  Examples can be found
-#    in your $PYEXCAL_DIR/etc directory, or from GitHub:
-# 
-# 5. Create a file containing the list of wcs'ed files you 
+# 5. Copy/create to the directly where you just copied 
+#    runSextractor.sh the sextractor files from your 
+#    $PYEXCAL_DIR/etc directory, or from GitHub:
+#    https://github.com/DouglasLeeTucker/pyExcal/tree/master/etc
+#
+# 6. Create a file containing the list of wcs'ed files you 
 #    want to run sextractor on and match with the standard
 #    star catalog.  E.g., in IRAF or pyraf, 
 #    --> hselect wcs_*.fits $I 'FILTER2=="r"' > fileList_r.txt
 #
-# 6. Run runSextractor.sh; e.g.:
+# 7. source your $PYEXCAL_DIR/bin/setup.bash (or setup.csh) file.
+#    (run in an environment that contains the astropy package.)
+#    (do this in the terminal where you plan to run the code.)
+#
+# 8. Run runSextractor.sh; e.g.:
 #
 #    bash-4.1$ runSextractor.sh fileList_r.txt
 # 
 #
-# ISSUES:
+# REMAINING ISSUES:
 # 
-# 1. Still need to add airmass, UT, etc. into the combined 
-#    matched file.
-#
-# 2. Still need to make header of the combined matched file
+# 1. Still need to make header of the combined matched file
 #    robust for times when we use sextractor to extract
 #    MAG_APERs (FLUX_APERs) from multiple apertures...
+# 
+# 2. Still not fully compliant with the format required 
+#    by $PYEXCAL/bin/pyExcal.py.
 #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 # Location of the sextractor executable:
 SEXTRACTOR_DIR=/sdss/ups/prd/sextractor/v2_18_10/Linux/binx86_64
