@@ -35,6 +35,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--inputFile', help='Name of input file', default='std-rguiz-test.g.csv')
     parser.add_argument('--band', help='comma-separated list of filter bands to consider', default='g,r,i,z,Y')
+    parser.add_argument('--nsigma', help='number of sigma for sigma-clipping of outliers', default=3.0, type=float)
+    parser.add_argument('--niter', help='number of iterations for sigma-clipping of outliers', default=3, type=int)
     parser.add_argument('--verbose', help='verbosity level of output to screen (0,1,2,...)', default=0, type=int)
     args = parser.parse_args()
 
@@ -48,7 +50,7 @@ def main():
         print 
         return 1
         
-    status = pyExcal_fit(args)
+    status = pyExcal(args)
 
     print
     print
@@ -61,7 +63,7 @@ def main():
 ##################################
 
 
-def pyExcal_fit(args):
+def pyExcal(args):
 
     # Based on a scripts at
     # http://linuxgazette.net/115/andreasen.html (by Anders Andreasen)
@@ -72,20 +74,21 @@ def pyExcal_fit(args):
     import math
     import os
     import sys
-    from scipy.optimize import leastsq
     import matplotlib.pyplot as plt
     
     if args.verbose>0: 
         print 
         print '* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *'
-        print 'pyExcal_fit'
+        print 'pyExcal'
         print '* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *'
         print 
 
 
     inputFile = args.inputFile
     band = args.band
-
+    niter = args.niter
+    nsigma = args.nsigma
+    
     # Check for the existence of the input file...
     if os.path.isfile(inputFile)==False:
         print """File %s does not exist...""" % (inputFile)
@@ -125,8 +128,7 @@ def pyExcal_fit(args):
     X = data['X']
     dstdcolor = csign*(data[band]-data[cband])
     
-
-    # Mask out bad data...
+    # Create initial (and generous) mask...
     # 1. Mask out entries with bad instrumental mags...
     mask1 = ( (data['mag'] > -100.) & (data['mag'] < 100.) )
     # 2. Mask out entries with bad instrumental magerrs...
@@ -136,67 +138,34 @@ def pyExcal_fit(args):
     # Full mask:
     mask = ( mask1 & mask2 & mask3 )
 
-    # Remove bad entries before performing the fit...
-    dmag = dmag[np.where(mask)]
-    X = X[np.where(mask)]
-    dstdcolor = dstdcolor[np.where(mask)]
+    for i in range(niter):
+
+        iiter = i + 1
+        if args.verbose > 0:
+            print """   iter%d...""" % ( iiter )
+
+
+        # Remove bad entries before performing the fit...
+        dmag = dmag[np.where(mask)]
+        X = X[np.where(mask)]
+        dstdcolor = dstdcolor[np.where(mask)]
     
-    # Calculate the median of dmag for use as an initial guess
-    # for the overall zeropoint offset..
-    mdn = np.median( dmag, None )
+        # Perform fit...
+        p,perr,rms = pyExcal_fit(X, dstdcolor, dmag, args.verbose)
+        res = residuals(p,X,dstdcolor,dmag)
+        stddev = res.std()
+        mask = (np.abs(res) < nsigma*stddev)
+        print
+        print
+        print
+        print res
+        print stddev
+        print mask
+        print
+    
 
-    # Parameter names
-    pname = (['a', 'b', 'k'])
-
-    # Initial parameter values
-    p0 = [mdn, 0.0, 0.0]
-
-    print 
-    print 'Initial parameter values:  ', p0
-
-
-    # Perform fit
-    p,cov,infodict,mesg,ier = leastsq(residuals, p0, args=(X, dstdcolor, dmag), maxfev=10000, full_output=1)
-    if (ier >=1 and ier <=4):
-	print "Converged"
-    else:
-	print "Not converged"
-	print mesg
-
-
-    # Calculate some descriptors of the fit 
-    # (similar to the output from gnuplot 2d fits)
-    chisq=sum(infodict['fvec']*infodict['fvec'])
-    dof=len(dmag)-len(p)
-    print "Converged with chi squared ",chisq
-    print "degrees of freedom, dof ", dof
-    print "RMS of residuals (i.e. sqrt(chisq/dof)) ", math.sqrt(chisq/dof)
-    print "Reduced chisq (i.e. variance of residuals) ", chisq/dof
-    print
-
-
-    # uncertainties are calculated as per gnuplot, "fixing" the result
-    # for non unit values of the reduced chisq.
-    # values at min match gnuplot
-    print "Fitted parameters at minimum, with 68% C.I.:"
-    for i,pmin in enumerate(p):
-	print "%-10s %13g +/- %13g   (%5f percent)" % (pname[i],pmin,math.sqrt(cov[i,i])*math.sqrt(chisq/dof),100.*math.sqrt(cov[i,i])*math.sqrt(chisq/dof)/abs(pmin))
-    print
-
-
-    print "Correlation matrix:"
-    # correlation matrix close to gnuplot
-    print "               ",
-    for i in range(len(pname)): print "%-10s" % (pname[i],),
-    print
-    for i in range(len(p)):
-	print "%-10s" % pname[i],
-	for j in range(i+1):
-	    print "%10f" % (cov[i,j]/math.sqrt(cov[i,i]*cov[j,j]),),
-	#endfor
-	print
-    #endfor
-
+    # Create QA plots...
+    
     title="""%s_inst - %s_std = %.3f + %.3f*((%s) - %.3f) + %.3f*X""" % (band, band, p[0], p[1], colorNameDict[band], stdColor0Dict[band], p[2])
     xlabel = ''
     ylabel = """%s_inst - %s_std""" % (band, band)
@@ -234,6 +203,7 @@ def pyExcal_fit(args):
 
     return 0
 
+
 ##################################
 
 # Parametric function:
@@ -252,8 +222,89 @@ def residuals(p,X,dstdcolor,dmag):
 
 ##################################
 
+# Fitting function:
+def pyExcal_fit(X, dstdcolor, dmag, verbose=0):
+
+    import numpy as np 
+    import math
+    from scipy.optimize import leastsq
+    
+    # Calculate the median of dmag for use as an initial guess
+    # for the overall zeropoint offset..
+    mdn = np.median( dmag, None )
+
+    # Parameter names
+    pname = (['a', 'b', 'k'])
+
+    # Initial parameter values
+    p0 = [mdn, 0.0, 0.0]
+
+    print 
+    print 'Initial parameter values:  ', p0
+
+
+    # Perform fit
+    p,cov,infodict,mesg,ier = leastsq(residuals, p0, args=(X, dstdcolor, dmag), maxfev=10000, full_output=1)
+    if (ier >=1 and ier <=4):
+	print "Converged"
+    else:
+	print "Not converged"
+	print mesg
+
+
+    # Calculate some descriptors of the fit 
+    # (similar to the output from gnuplot 2d fits)
+    chisq=sum(infodict['fvec']*infodict['fvec'])
+    dof=len(dmag)-len(p)
+    rms=math.sqrt(chisq/dof)
+
+    if verbose > 0:
+        print "Converged with chi squared ",chisq
+        print "degrees of freedom, dof ", dof
+        print "RMS of residuals (i.e. sqrt(chisq/dof)) ", rms
+        print "Reduced chisq (i.e. variance of residuals) ", chisq/dof
+        print
+
+
+    # uncertainties are calculated as per gnuplot, "fixing" the result
+    # for non unit values of the reduced chisq.
+    # values at min match gnuplot
+    perr = []
+    if verbose > 0:
+        print "Fitted parameters at minimum, with 68% C.I.:"
+    for i,pmin in enumerate(p):
+        if verbose > 0:
+	    print "%-10s %13g +/- %13g   (%5f percent)" % (pname[i],pmin,math.sqrt(cov[i,i])*math.sqrt(chisq/dof),100.*math.sqrt(cov[i,i])*math.sqrt(chisq/dof)/abs(pmin))
+        perr.append(math.sqrt(cov[i,i])*math.sqrt(chisq/dof))
+    if verbose > 0:  print
+
+
+    if verbose > 0:
+        print "Correlation matrix:"
+        # correlation matrix close to gnuplot
+        print "               ",
+        for i in range(len(pname)): print "%-10s" % (pname[i],),
+        print
+        for i in range(len(p)):
+	    print "%-10s" % pname[i],
+	    for j in range(i+1):
+	        print "%10f" % (cov[i,j]/math.sqrt(cov[i,i]*cov[j,j]),),
+	    #endfor
+	    print
+        #endfor
+        print
+        print
+        print
+
+        
+    return p, perr, rms
+
+
+##################################
+
 if __name__ == "__main__":
     main()
 
 ##################################
+
 
