@@ -111,7 +111,6 @@ def pyExcal(args):
     # Python dictionary of color names...
     colorNameDict = {'u':'u-g','g':'g-r','r':'r-i','i':'r-i','z':'i-z'}
     
-
     # Grab the correct conjugate filter band from the
     #  conjugate filter band Python dictionary...
     cband = cbandDict[band]
@@ -127,7 +126,10 @@ def pyExcal(args):
     dmag = data['mag'] - data[band]
     X = data['X']
     dstdcolor = csign*(data[band]-data[cband])
-    
+    name = data['Name']
+    ut = data['UT']
+
+
     # Create initial (and generous) mask...
     # 1. Mask out entries with bad instrumental mags...
     mask1 = ( (data['mag'] > -100.) & (data['mag'] < 100.) )
@@ -136,7 +138,8 @@ def pyExcal(args):
     # 3. Mask out entries with bad dstdcolors...
     mask3 = ( (dstdcolor > -5.) & (dstdcolor < 5.) )
     # Full mask:
-    mask = ( mask1 & mask2 & mask3 )
+    mask123 = ( mask1 & mask2 & mask3 )
+    mask = mask123
 
     for i in range(niter):
 
@@ -144,25 +147,38 @@ def pyExcal(args):
         if args.verbose > 0:
             print """   iter%d...""" % ( iiter )
 
-
         # Remove bad entries before performing the fit...
-        dmag = dmag[np.where(mask)]
-        X = X[np.where(mask)]
-        dstdcolor = dstdcolor[np.where(mask)]
+        dmag_masked = dmag[np.where(mask)]
+        X_masked = X[np.where(mask)]
+        dstdcolor_masked = dstdcolor[np.where(mask)]
     
+        # List bad entries that were removed...
+        if args.verbose > 0:
+            name_bad = name[np.where(~mask)]
+            ut_bad = ut[np.where(~mask)]
+            X_bad = X[np.where(~mask)]
+            dmag_bad = dmag[np.where(~mask)]
+            print 
+            print "These entries are excluded from this iteration of the fit:"
+            print 
+            print "    N         Name                 UT      X        dmag"
+            for j in range(len(name_bad)):
+                print """%5d %-25s %7.4f %6.3f %10.3f""" % \
+                    (j+1, name_bad[j], ut_bad[j], X_bad[j], dmag_bad[j])
+
+            print 
+            print 
+
         # Perform fit...
-        p,perr,rms = pyExcal_fit(X, dstdcolor, dmag, args.verbose)
+        p,perr,rms = pyExcal_fit(X_masked, dstdcolor_masked, dmag_masked, args.verbose)
+        res_masked = residuals(p,X_masked,dstdcolor_masked,dmag_masked)
+        stddev_masked = res_masked.std()
+
+        # Calculate residuals for full (unmasked) data set and update mask...
         res = residuals(p,X,dstdcolor,dmag)
-        stddev = res.std()
-        mask = (np.abs(res) < nsigma*stddev)
-        print
-        print
-        print
-        print res
-        print stddev
-        print mask
-        print
-    
+        mask4 = (np.abs(res) < nsigma*stddev_masked)
+        mask = mask123 & mask4
+
 
     # Create QA plots...
     
@@ -176,29 +192,78 @@ def pyExcal(args):
     print
     
     # output QA plot...
-    qaPlot1 = """qa-%s_airmass.%s-band.png""" % (baseName, band)
-    print """Outputting QA plot %s""" % (qaPlot1)
+    qaPlot1a = """qa-%s_dmag_airmass.%s-band.png""" % (baseName, band)
+    print """Outputting QA plot %s""" % (qaPlot1a)
     xlabel = 'airmass'
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.scatter(X,dmag)
-    dstdcolorMean=np.zeros(dstdcolor.size)+np.mean(dstdcolor)
-    plt.plot(X, fp(p,X,dstdcolorMean), '-', linewidth=2)
+    dmag_masked_min = np.min(dmag_masked)
+    dmag_masked_max = np.max(dmag_masked)
+    y_lo = dmag_masked_min - 0.5*(dmag_masked_max-dmag_masked_min)
+    y_hi = dmag_masked_max + 0.5*(dmag_masked_max-dmag_masked_min)
+    plt.ylim(y_lo, y_hi)
+    plt.scatter(X, dmag, facecolors='none', edgecolors='r', s=10)
+    plt.scatter(X_masked, dmag_masked)
+    dstdcolorMean=np.zeros(dstdcolor_masked.size)+np.mean(dstdcolor_masked)
+    plt.plot(X_masked, fp(p,X_masked,dstdcolorMean), '-', linewidth=2)
     plt.grid(True)
-    plt.savefig(qaPlot1)
+    plt.savefig(qaPlot1a)
     plt.clf()
-    qaPlot2 = """qa-%s_color.%s-band.png""" % (baseName, band)
-    print """Outputting QA plot %s""" % (qaPlot2)
+
+    qaPlot1b = """qa-%s_res_airmass.%s-band.png""" % (baseName, band)
+    print """Outputting QA plot %s""" % (qaPlot1b)
+    xlabel = 'airmass'
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel('residuals [mag]')
+    res_masked_min = np.min(res_masked)
+    res_masked_max = np.max(res_masked)
+    y_lo = res_masked_min - 0.5*(res_masked_max-res_masked_min)
+    y_hi = res_masked_max + 0.5*(res_masked_max-res_masked_min)
+    plt.ylim(y_lo, y_hi)
+    plt.scatter(X, res, facecolors='none', edgecolors='r', s=10)
+    plt.scatter(X_masked, res_masked)
+    zero_line=np.zeros(dstdcolor_masked.size)
+    plt.plot(X_masked, zero_line, '-', linewidth=2)
+    plt.grid(True)
+    plt.savefig(qaPlot1b)
+    plt.clf()
+
+    qaPlot2a = """qa-%s_dmag_color.%s-band.png""" % (baseName, band)
+    print """Outputting QA plot %s""" % (qaPlot2a)
     xlabel = """(%s) - %.3f""" % (colorNameDict[band], stdColor0Dict[band])
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.scatter(dstdcolor,dmag)
-    XMean=np.zeros(X.size)+np.mean(X)
-    plt.plot(dstdcolor, fp(p,XMean,dstdcolor), '-', linewidth=2)
+    y_lo = dmag_masked_min - 0.5*(dmag_masked_max-dmag_masked_min)
+    y_hi = dmag_masked_max + 0.5*(dmag_masked_max-dmag_masked_min)
+    plt.ylim(y_lo, y_hi)
+    plt.scatter(dstdcolor, dmag, facecolors='none', edgecolors='r', s=10)
+    plt.scatter(dstdcolor_masked,dmag_masked)
+    XMean=np.zeros(X_masked.size)+np.mean(X_masked)
+    plt.plot(dstdcolor_masked, fp(p,XMean,dstdcolor_masked), '-', linewidth=2)
     plt.grid(True)
-    plt.savefig(qaPlot2)
+    plt.savefig(qaPlot2a)
+    plt.clf()
+
+    qaPlot2b = """qa-%s_res_color.%s-band.png""" % (baseName, band)
+    print """Outputting QA plot %s""" % (qaPlot2b)
+    xlabel = """(%s) - %.3f""" % (colorNameDict[band], stdColor0Dict[band])
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel('residuals [mag]')
+    res_masked_min = np.min(res_masked)
+    res_masked_max = np.max(res_masked)
+    y_lo = res_masked_min - 0.5*(res_masked_max-res_masked_min)
+    y_hi = res_masked_max + 0.5*(res_masked_max-res_masked_min)
+    plt.ylim(y_lo, y_hi)
+    plt.scatter(dstdcolor, res, facecolors='none', edgecolors='r', s=10)
+    plt.scatter(dstdcolor_masked, res_masked)
+    zero_line=np.zeros(dstdcolor_masked.size)
+    plt.plot(dstdcolor_masked, zero_line, '-', linewidth=2)
+    plt.grid(True)
+    plt.savefig(qaPlot2b)
     plt.clf()
 
     return 0
